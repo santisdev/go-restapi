@@ -116,7 +116,32 @@ func (h *userHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	//Get the user id
+	matches := getUserRe.FindStringSubmatch(r.URL.Path) //first match is the whole string
+	if len(matches) < 2 {
+		notFound(w, r)
+		return
+	}
 
+	h.store.RLock()
+	user, ok := h.store.m[matches[1]]
+	h.store.RUnlock()
+	if !ok {
+		notFound(w, r) //change it to usernotfound
+		return
+	}
+	h.store.Lock()
+	delete(h.store.m, matches[1])
+	h.store.Unlock()
+
+	jsonBytes, err := json.Marshal(user)
+	if err != nil {
+		internalServerError(w, r)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonBytes)
 }
 
 func notFound(w http.ResponseWriter, r *http.Request) {
